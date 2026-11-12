@@ -52,22 +52,6 @@
     margin-bottom: clamp(18px, 3vw, 28px);
   }
 
-  /* tombol kembali (muncul saat sudah memilih ADMIN / CONTENT) */
-  .back {
-    display: inline-block;
-    align-self: flex-start;
-    margin-bottom: 16px;
-    font-size: .68rem;
-    font-weight: 500;
-    letter-spacing: .16em;
-    text-transform: uppercase;
-    color: var(--muted);
-    text-decoration: none;
-    transition: color .2s;
-  }
-  .back[hidden] { display: none; }
-  .back:hover, .back:focus-visible { color: var(--text); outline: none; }
-
   /* ---------- Grid kotak ---------- */
   .grid {
     display: grid;
@@ -78,19 +62,6 @@
   }
   @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
-
-  /* layar pilihan ADMIN / CONTENT: kotak pas dengan teks, di tengah halaman */
-  .grid.roles {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    align-content: center;
-    gap: 16px;
-    background: none;
-    border: 0;
-  }
 
   .card {
     position: relative;
@@ -179,25 +150,6 @@
     line-height: 1.2;
     min-height: 2.4em;             /* biar meta sejajar walau judul 1 / 2 baris */
     overflow-wrap: anywhere;
-  }
-  /* kotak pilihan ADMIN / CONTENT: hanya tulisan, lebar kotak mengikuti teks */
-  .card.role {
-    display: block;
-    flex: 0 0 auto;
-    border: 1px solid var(--line);
-    transition: opacity .25s ease, transform .25s ease, background .3s ease, border-color .3s ease;
-  }
-  .role:hover { background: #141416; border-color: #4a4a50; }
-  .role .hit { display: block; padding: clamp(18px, 3vw, 26px) clamp(26px, 5vw, 52px); }
-  .role .label {
-    display: block;
-    font-family: var(--serif);
-    font-size: clamp(1.3rem, 2.6vw, 1.9rem);
-    line-height: 1;
-    letter-spacing: .14em;
-    margin-right: -.14em;          /* imbangi spasi huruf terakhir supaya teks pas di tengah kotak */
-    text-transform: uppercase;
-    white-space: nowrap;
   }
   .meta {
     margin-top: auto;
@@ -443,11 +395,10 @@
 <body>
 
 <main class="wrap">
-  <a class="back" id="back" href="#" hidden>← Portal</a>
-  <h1 id="heading">Portal</h1>
-  <section class="grid roles" id="grid" aria-label="Daftar"></section>
+  <h1>Portal</h1>
+  <section class="grid" id="grid" aria-label="Daftar portal"></section>
 
-  <div class="tools" id="tools" hidden>
+  <div class="tools" id="tools">
     <span class="hint" id="hint" hidden>Pilih kotak yang mau dihapus</span>
     <button type="button" class="tool" id="toolAdd">+ Tambah</button>
     <button type="button" class="tool" id="toolDel" aria-pressed="false">Hapus</button>
@@ -495,7 +446,7 @@
 <div class="modal" id="delModal" hidden role="alertdialog" aria-modal="true" aria-labelledby="delHeading">
   <div class="panel dlg">
     <h2 id="delHeading">Hapus portal?</h2>
-    <p>Kotak <strong id="delName"></strong> akan dihapus dari daftar <strong id="delRole"></strong>.</p>
+    <p>Kotak <strong id="delName"></strong> akan dihapus dari halaman ini.</p>
     <div class="actions">
       <button type="button" class="btn" id="delCancel">Batal</button>
       <button type="button" class="btn danger" id="delOk">Hapus</button>
@@ -507,58 +458,37 @@
 
 <script>
 /* ==========================================================
-   PILIHAN (ADMIN / CONTENT) DAN PORTAL BAWAANNYA
+   DAFTAR PORTAL BAWAAN
    ----------------------------------------------------------
-   Layar pertama menampilkan 2 pilihan di bawah ini. Setiap pilihan
-   punya daftar portalnya sendiri (kotak yang tampil setelah diklik).
-
-   Cara paling gampang menambah portal: buka salah satu pilihan,
-   klik "+ Tambah" (tombol kecil di bawah), isi formnya, simpan.
-   Cara menghapus: klik "Hapus" di bawah, lalu klik kotak yang mau
-   dihapus (atau tombol ×-nya). Klik "Selesai" kalau sudah.
+   Cara paling gampang menambah portal: klik "+ Tambah" (tombol kecil
+   di bawah), isi formnya, simpan. Cara menghapus: klik "Hapus" di
+   bawah, lalu klik kotak yang mau dihapus (atau tombol ×-nya).
+   Klik "Selesai" kalau sudah.
    (Portal hasil tambah/hapus ini disimpan di browser ini.)
 
-   Daftar `portals` di bawah ini adalah portal bawaan yang selalu ada
-   saat halaman dibuka. Boleh juga ditambah lewat kode: copy satu baris
+   Daftar di bawah ini adalah portal bawaan yang selalu ada saat
+   halaman dibuka. Boleh juga ditambah lewat kode: copy satu baris
    { ... }, tempel di bawahnya, lalu ganti isinya.
 
-   Untuk pilihan (ADMIN / CONTENT):
-     id     : kode singkat untuk alamat (misal "admin" -> index.html#admin)
-     title  : tulisan di kotak pilihan (polos, tanpa gambar)
-     portals: daftar portal di dalamnya
-
-   Untuk setiap portal:
-     title  : judul di kotak
-     meta   : teks kecil di bawah judul (boleh dikosongkan)
-     url    : link tujuan (alamat web atau nama file, misal "report.html")
-     image  : lokasi gambar (misal "images/report-content.jpg")
-              kalau belum ada / salah, otomatis tampil placeholder
-     newTab : true kalau mau dibuka di tab baru (opsional)
+   title  : judul di kotak
+   meta   : teks kecil di bawah judul (boleh dikosongkan)
+   url    : link tujuan (alamat web atau nama file, misal "report.html")
+   image  : lokasi gambar (misal "images/report-content.jpg")
+            kalau belum ada / salah, otomatis tampil placeholder
+   newTab : true kalau mau dibuka di tab baru (opsional)
    ========================================================== */
-const ROLES = [
-  {
-    id: "admin",
-    title: "Admin",
-    portals: [
-      { title: "Report Bulanan",   meta: "Laporan · Bulanan", url: "#", image: "images/report-bulanan.jpg" },
-      { title: "Ubah Cover Harga", meta: "Tools · Harga",     url: "#", image: "images/ubah-cover-harga.jpg" },
-    ]
-  },
-  {
-    id: "content",
-    title: "Content",
-    portals: [
-      { title: "Report Content",   meta: "Laporan · Konten",  url: "#", image: "images/report-content.jpg" },
-    ]
-  }
+const PORTALS = [
+  { title: "Report Content",   meta: "Laporan · Konten",  url: "#", image: "images/report-content.jpg" },
+  { title: "Report Bulanan",   meta: "Laporan · Bulanan", url: "#", image: "images/report-bulanan.jpg" },
+  { title: "Ubah Cover Harga", meta: "Tools · Harga",     url: "#", image: "images/ubah-cover-harga.jpg" },
+
+  // contoh nambah portal baru lewat kode (hapus tanda // di depan untuk aktifkan):
+  // { title: "Nama Portal", meta: "Kategori", url: "https://...", image: "images/nama-portal.jpg", newTab: true },
 ];
 /* ========================================================== */
 
-const KEY = "portal-v2";
+const KEY = "portal-v2";     // sama dengan versi sebelumnya, jadi portal yang pernah kamu tambah tetap muncul
 const grid = document.getElementById("grid");
-const heading = document.getElementById("heading");
-const back = document.getElementById("back");
-let currentRole = null;     // null = layar pilihan; selain itu = pilihan yang sedang dibuka
 
 const X_SVG = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
 
@@ -602,11 +532,12 @@ function toast(msg) {
 /* ---------- Data ---------- */
 const slug = s => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-function getPortals(role) {
-  const base = (role.portals || [])
-    .map(p => Object.assign({}, p, { id: p.id || "seed-" + role.id + "-" + slug(p.title) }))
-    .filter(p => !state.deleted.includes(p.id));
-  return base.concat(state.added.filter(x => x.role === role.id));
+function getPortals() {
+  const base = PORTALS
+    .map(p => Object.assign({}, p, { id: p.id || "seed-" + slug(p.title) }))
+    // "-judul" di akhir id ikut dicek supaya portal yang dulu dihapus (saat masih ada ADMIN/CONTENT) tetap terhapus
+    .filter(p => !state.deleted.some(d => d === p.id || d.endsWith("-" + slug(p.title))));
+  return base.concat(state.added);
 }
 
 function removePortal(id) {
@@ -670,30 +601,6 @@ function buildBody(titleText, metaText) {
   return body;
 }
 
-/* ---------- Kotak pilihan (ADMIN / CONTENT) ---------- */
-function buildRoleCard(r, i) {
-  const card = document.createElement("div");
-  card.className = "card role";
-  card.style.setProperty("--i", i);
-
-  const a = document.createElement("a");
-  a.className = "hit";
-  a.href = "#" + r.id;
-  a.setAttribute("aria-label", "Buka " + r.title);
-  a.addEventListener("click", e => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;   // buka di tab baru tetap jalan
-    e.preventDefault();
-    go(r.id);
-  });
-
-  const label = document.createElement("span");
-  label.className = "label";
-  label.textContent = r.title;
-  a.appendChild(label);
-  card.appendChild(a);
-  return card;
-}
-
 /* ---------- Kotak portal ---------- */
 function buildCard(p, i) {
   const card = document.createElement("div");
@@ -728,21 +635,16 @@ function buildCard(p, i) {
 /* ---------- Render ---------- */
 function render(animate) {
   grid.classList.toggle("noanim", !animate);
-  grid.classList.toggle("roles", !currentRole);
   grid.replaceChildren();
 
-  if (!currentRole) {
-    ROLES.forEach((r, i) => grid.appendChild(buildRoleCard(r, i)));
+  const list = getPortals();
+  if (list.length) {
+    list.forEach((p, i) => grid.appendChild(buildCard(p, i)));
   } else {
-    const list = getPortals(currentRole);
-    if (list.length) {
-      list.forEach((p, i) => grid.appendChild(buildCard(p, i)));
-    } else {
-      const none = document.createElement("div");
-      none.className = "none";
-      none.textContent = 'Belum ada portal. Klik "+ Tambah" di bawah.';
-      grid.appendChild(none);
-    }
+    const none = document.createElement("div");
+    none.className = "none";
+    none.textContent = 'Belum ada portal. Klik "+ Tambah" di bawah.';
+    grid.appendChild(none);
   }
   fillRow();
   syncTools();
@@ -751,7 +653,6 @@ function render(animate) {
 /* Lengkapi baris terakhir dengan kotak kosong supaya garis grid tetap rapi */
 function fillRow() {
   grid.querySelectorAll(".card.empty").forEach(el => el.remove());
-  if (!currentRole) return;          // layar pilihan tidak memakai kotak pengisi
   const total = grid.querySelectorAll(".card").length;
   const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
   const rest = (cols - (total % cols)) % cols;
@@ -823,9 +724,8 @@ const hint = document.getElementById("hint");
 let deleteMode = false;     // true = mode hapus: klik kotak (atau tombol ×) untuk menghapus
 
 function syncTools() {
-  const has = currentRole ? getPortals(currentRole).length > 0 : false;
+  const has = getPortals().length > 0;
   if (!has) deleteMode = false;
-  tools.hidden = !currentRole;
   toolDel.disabled = !has;
   toolDel.textContent = deleteMode ? "Selesai" : "Hapus";
   toolDel.classList.toggle("on", deleteMode);
@@ -839,7 +739,6 @@ toolDel.addEventListener("click", () => { deleteMode = !deleteMode; syncTools();
 
 /* ---------- Hapus ---------- */
 const delName = document.getElementById("delName");
-const delRole = document.getElementById("delRole");
 const delCancel = document.getElementById("delCancel");
 const delOk = document.getElementById("delOk");
 let pendingDelete = null;
@@ -847,7 +746,6 @@ let pendingDelete = null;
 function askDelete(p, card) {
   pendingDelete = { p, card };
   delName.textContent = p.title || "ini";
-  delRole.textContent = currentRole ? currentRole.title : "";
   openModal(delModal, delCancel);
 }
 
@@ -869,7 +767,6 @@ delOk.addEventListener("click", () => {
 });
 
 /* ---------- Tambah ---------- */
-const addHeading = document.getElementById("addHeading");
 const pTitle = document.getElementById("pTitle");
 const pMeta = document.getElementById("pMeta");
 const pUrl = document.getElementById("pUrl");
@@ -896,9 +793,7 @@ function resetAddForm() {
 }
 
 function openAdd() {
-  if (!currentRole) return;
   resetAddForm();
-  addHeading.textContent = "Tambah Portal · " + currentRole.title;
   openModal(addModal, pTitle);
 }
 
@@ -950,7 +845,7 @@ pFile.addEventListener("change", () => {
 });
 
 async function saveAdd() {
-  if (saving || !currentRole) return;
+  if (saving) return;
   saving = true;
   try {
     await imageTask;
@@ -959,7 +854,6 @@ async function saveAdd() {
 
     const item = {
       id: "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      role: currentRole.id,
       title,
       meta: pMeta.value.trim(),
       url: pUrl.value.trim(),
@@ -985,55 +879,7 @@ async function saveAdd() {
   }
 }
 
-/* ==========================================================
-   NAVIGASI
-   Alamat halaman menentukan layar yang tampil:
-     index.html          -> pilihan ADMIN / CONTENT
-     index.html#admin    -> portal milik ADMIN
-     index.html#content  -> portal milik CONTENT
-   Jadi tombol "back" browser dan refresh tetap pada layar yang benar.
-   ========================================================== */
-function showRole(id, animate) {
-  currentRole = ROLES.find(r => r.id === id) || null;
-  deleteMode = false;
-
-  [addModal, delModal].forEach(m => { if (!m.hidden) closeModal(m); });
-
-  heading.textContent = currentRole ? currentRole.title : "Portal";
-  back.hidden = !currentRole;
-  document.title = currentRole ? "PORTAL · " + currentRole.title.toUpperCase() : "PORTAL";
-
-  render(animate);
-  window.scrollTo(0, 0);
-}
-const hashId = () => (location.hash || "").replace(/^#/, "");
-
-/* Pindah layar: tampilan langsung berganti, alamat (#admin) ikut diperbarui
-   kalau browser mengizinkan. Di pratinjau yang terbatas, alamat tidak berubah
-   tapi layar tetap berganti. */
-function go(id) {
-  showRole(id, true);
-  try {
-    history.pushState(null, "", id ? "#" + id : location.href.split("#")[0]);
-  } catch (e) { /* abaikan */ }
-}
-
-// tombol kembali
-back.addEventListener("click", e => {
-  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-  e.preventDefault();
-  go("");
-});
-
-// tombol back/forward browser, atau alamat yang diketik manual
-function syncFromAddress() {
-  const id = hashId();
-  if ((currentRole ? currentRole.id : "") !== id) showRole(id, true);
-}
-window.addEventListener("popstate", syncFromAddress);
-window.addEventListener("hashchange", syncFromAddress);
-
-showRole(hashId(), true);
+render(true);
 </script>
 </body>
 </html>
