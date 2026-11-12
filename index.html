@@ -34,8 +34,12 @@
 
   .wrap {
     max-width: 1120px;
+    min-height: 100vh;
+    min-height: 100dvh;
     margin: 0 auto;
     padding: clamp(28px, 6vw, 72px) 20px 80px;
+    display: flex;
+    flex-direction: column;
   }
 
   /* ---------- Judul ---------- */
@@ -51,6 +55,7 @@
   /* tombol kembali (muncul saat sudah memilih ADMIN / CONTENT) */
   .back {
     display: inline-block;
+    align-self: flex-start;
     margin-bottom: 16px;
     font-size: .68rem;
     font-weight: 500;
@@ -71,9 +76,21 @@
     background: var(--line);
     border: 1px solid var(--line);
   }
-  .grid.roles { grid-template-columns: repeat(2, 1fr); }   /* layar pilihan ADMIN / CONTENT */
   @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 560px) { .grid, .grid.roles { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+  /* layar pilihan ADMIN / CONTENT: kotak pas dengan teks, di tengah halaman */
+  .grid.roles {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    gap: 16px;
+    background: none;
+    border: 0;
+  }
 
   .card {
     position: relative;
@@ -110,7 +127,6 @@
     overflow: hidden;
     background: #161618;
   }
-  .grid.roles .thumb { aspect-ratio: 16 / 10; }
   .thumb img {
     position: absolute;
     inset: 0;
@@ -164,11 +180,24 @@
     min-height: 2.4em;             /* biar meta sejajar walau judul 1 / 2 baris */
     overflow-wrap: anywhere;
   }
-  .role .title {
-    font-size: clamp(1.5rem, 3vw, 2.1rem);
-    letter-spacing: .12em;
+  /* kotak pilihan ADMIN / CONTENT: hanya tulisan, lebar kotak mengikuti teks */
+  .card.role {
+    display: block;
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    transition: opacity .25s ease, transform .25s ease, background .3s ease, border-color .3s ease;
+  }
+  .role:hover { background: #141416; border-color: #4a4a50; }
+  .role .hit { display: block; padding: clamp(18px, 3vw, 26px) clamp(26px, 5vw, 52px); }
+  .role .label {
+    display: block;
+    font-family: var(--serif);
+    font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+    line-height: 1;
+    letter-spacing: .14em;
+    margin-right: -.14em;          /* imbangi spasi huruf terakhir supaya teks pas di tengah kotak */
     text-transform: uppercase;
-    min-height: 0;
+    white-space: nowrap;
   }
   .meta {
     margin-top: auto;
@@ -467,8 +496,7 @@
 
    Untuk pilihan (ADMIN / CONTENT):
      id     : kode singkat untuk alamat (misal "admin" -> index.html#admin)
-     title  : tulisan di kotak pilihan
-     image  : gambar kotak pilihan (opsional)
+     title  : tulisan di kotak pilihan (polos, tanpa gambar)
      portals: daftar portal di dalamnya
 
    Untuk setiap portal:
@@ -483,7 +511,6 @@ const ROLES = [
   {
     id: "admin",
     title: "Admin",
-    image: "images/admin.jpg",
     portals: [
       { title: "Report Bulanan",   meta: "Laporan · Bulanan", url: "#", image: "images/report-bulanan.jpg" },
       { title: "Ubah Cover Harga", meta: "Tools · Harga",     url: "#", image: "images/ubah-cover-harga.jpg" },
@@ -492,7 +519,6 @@ const ROLES = [
   {
     id: "content",
     title: "Content",
-    image: "images/content.jpg",
     portals: [
       { title: "Report Content",   meta: "Laporan · Konten",  url: "#", image: "images/report-content.jpg" },
     ]
@@ -633,8 +659,10 @@ function buildRoleCard(r, i) {
     go(r.id);
   });
 
-  const n = getPortals(r).length;
-  a.append(buildThumb(r.image, r.title), buildBody(r.title, n ? n + " portal" : "Belum ada portal"));
+  const label = document.createElement("span");
+  label.className = "label";
+  label.textContent = r.title;
+  a.appendChild(label);
   card.appendChild(a);
   return card;
 }
@@ -715,6 +743,7 @@ function render(animate) {
 /* Lengkapi baris terakhir dengan kotak kosong supaya garis grid tetap rapi */
 function fillRow() {
   grid.querySelectorAll(".card.empty").forEach(el => el.remove());
+  if (!currentRole) return;          // layar pilihan tidak memakai kotak pengisi
   const total = grid.querySelectorAll(".card").length;
   const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
   const rest = (cols - (total % cols)) % cols;
