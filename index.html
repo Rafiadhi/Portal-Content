@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PORTAL</title>
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0b0c;
+    --card: #0f0f10;
+    --line: #2a2a2d;
+    --text: #f1efe9;
+    --muted: #8d8d92;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { background: var(--bg); }
+  html.modal-open { overflow: hidden; }
+
+  body {
+    min-height: 100vh;
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: clamp(28px, 6vw, 72px) 20px 80px;
+  }
+
+  /* ---------- Judul ---------- */
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: clamp(18px, 3vw, 28px);
+  }
+
+  /* tombol kembali (muncul saat sudah memilih ADMIN / CONTENT) */
+  .back {
+    display: inline-block;
+    margin-bottom: 16px;
+    font-size: .68rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .2s;
+  }
+  .back[hidden] { display: none; }
+  .back:hover, .back:focus-visible { color: var(--text); outline: none; }
+
+  /* ---------- Grid kotak ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;                      /* garis pemisah antar kotak */
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .grid.roles { grid-template-columns: repeat(2, 1fr); }   /* layar pilihan ADMIN / CONTENT */
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .grid, .grid.roles { grid-template-columns: 1fr; } }
+
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--card);
+    opacity: 0;
+    transform: translateY(10px);
+    animation: rise .6s cubic-bezier(.2, .7, .2, 1) forwards;
+    animation-delay: calc(var(--i, 0) * 70ms);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .card.empty { pointer-events: none; }
+  .grid.noanim .card { animation: none; opacity: 1; transform: none; }
+  .card.leaving { opacity: 0 !important; transform: scale(.97) !important; }
+
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  /* link yang membungkus gambar + teks */
+  .hit {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    color: inherit;
+    text-decoration: none;
+    outline: none;
+  }
+  .hit:focus-visible { box-shadow: inset 0 0 0 1px var(--text); }
+
+  /* ---------- Area gambar ---------- */
+  .thumb {
+    position: relative;
+    aspect-ratio: 11 / 10;
+    overflow: hidden;
+    background: #161618;
+  }
+  .grid.roles .thumb { aspect-ratio: 16 / 10; }
+  .thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .7s cubic-bezier(.2, .7, .2, 1);
+  }
+  /* Gradient hitam di sisi bawah gambar */
+  .thumb::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, .95) 0%,
+      rgba(0, 0, 0, .6) 22%,
+      rgba(0, 0, 0, 0) 58%
+    );
+  }
+  /* Placeholder kalau gambar belum ada */
+  .ph {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: .62rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: #4b4b50;
+    background:
+      repeating-linear-gradient(135deg, #161618 0 14px, #1a1a1d 14px 28px);
+  }
+  .thumb.has-img .ph { display: none; }
+
+  /* ---------- Teks bawah ---------- */
+  .body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 22px 20px 20px;
+  }
+  .title {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    line-height: 1.2;
+    min-height: 2.4em;             /* biar meta sejajar walau judul 1 / 2 baris */
+    overflow-wrap: anywhere;
+  }
+  .role .title {
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    min-height: 0;
+  }
+  .meta {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 1em;
+    font-size: .66rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .arrow {
+    opacity: 0;
+    transform: translate(-4px, 4px);
+    transition: opacity .3s, transform .3s;
+    color: var(--text);
+    font-size: .9rem;
+    letter-spacing: 0;
+  }
+
+  /* ---------- Hover / fokus ---------- */
+  .card:hover .thumb img,
+  .hit:focus-visible .thumb img { transform: scale(1.05); }
+  .card:hover .arrow,
+  .hit:focus-visible .arrow { opacity: 1; transform: none; }
+
+  /* ---------- Tombol hapus (×) ---------- */
+  .del {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .2);
+    background: rgba(0, 0, 0, .6);
+    color: #e8e6e0;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(.9);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: opacity .25s, transform .25s, background .2s, border-color .2s, color .2s;
+  }
+  .card:hover .del,
+  .card:focus-within .del { opacity: 1; transform: none; }
+  .del:hover, .del:focus-visible {
+    background: #9b1c1c;
+    border-color: #9b1c1c;
+    color: #fff;
+    outline: none;
+  }
+  @media (hover: none) { .del { opacity: .9; transform: none; } }
+
+  /* ---------- Kotak tambah (+) ---------- */
+  .add {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    background: var(--card);
+    display: flex;
+    flex-direction: column;
+    outline: none;
+  }
+  .add .thumb { background: #121214; }
+  .add .plus {
+    position: absolute;
+    inset: 0 0 28% 0;
+    display: grid;
+    place-items: center;
+    color: #66666c;
+    transition: color .3s, transform .6s cubic-bezier(.2, .7, .2, 1);
+  }
+  .add:hover .plus,
+  .add:focus-visible .plus { color: var(--text); transform: rotate(90deg) scale(1.08); }
+  .add:focus-visible { box-shadow: inset 0 0 0 1px var(--text); }
+  .add .title { color: #b9b7b1; }
+
+  /* ---------- Pop-up (form tambah & konfirmasi hapus) ---------- */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    padding: 16px;
+    overflow: auto;
+    background: rgba(0, 0, 0, .72);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+  .modal[hidden] { display: none; }
+  .panel {
+    margin: auto;
+    width: min(440px, 100%);
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--text);
+    animation: pop .3s cubic-bezier(.2, .7, .2, 1);
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+
+  .dlg { padding: 26px 24px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .dlg h2 { font-family: var(--serif); font-weight: 400; font-size: 1.6rem; line-height: 1.1; }
+  .dlg p { color: var(--muted); font-size: .92rem; line-height: 1.55; }
+  .dlg strong { color: var(--text); font-weight: 500; overflow-wrap: anywhere; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field > span {
+    font-size: .64rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .field input[type="text"] {
+    background: #0a0a0b;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: .95rem;
+    padding: 11px 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .field input[type="text"]::placeholder { color: #55555a; }
+  .field input[type="text"]:focus { border-color: #77777d; }
+  .field input[type="text"].err { border-color: #b32222; }
+
+  .drop {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 9;
+    border: 1px dashed #3a3a3e;
+    background: #0a0a0b center / cover no-repeat;
+    cursor: pointer;
+    font-size: .64rem;
+    font-weight: 500;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: border-color .2s;
+  }
+  .drop:hover, .drop:focus-within { border-color: #7a7a80; }
+  .drop input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .drop.has .drop-t {
+    align-self: end;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, .7);
+    color: #ddd;
+  }
+
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .86rem;
+    color: #cfcdc7;
+    cursor: pointer;
+  }
+  .check input { width: 16px; height: 16px; accent-color: #f1efe9; }
+
+  .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+  .btn {
+    font: inherit;
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: 12px 18px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .btn:hover { border-color: #77777d; }
+  .btn:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+  .btn.primary { background: var(--text); border-color: var(--text); color: #0b0b0c; }
+  .btn.primary:hover { background: #fff; }
+  .btn.danger { background: #9b1c1c; border-color: #9b1c1c; color: #fff; }
+  .btn.danger:hover { background: #b32222; border-color: #b32222; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    z-index: 50;
+    max-width: calc(100vw - 32px);
+    padding: 12px 16px;
+    background: #1b1b1e;
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-size: .8rem;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translate(-50%, 16px);
+    pointer-events: none;
+    transition: opacity .3s, transform .3s;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; opacity: 1; transform: none; }
+    .thumb img, .arrow, .plus { transition: none; }
+    .panel { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <a class="back" id="back" href="#" hidden>← Portal</a>
+  <h1 id="heading">Portal</h1>
+  <section class="grid roles" id="grid" aria-label="Daftar"></section>
+</main>
+
+<!-- Pop-up tambah portal -->
+<div class="modal" id="addModal" hidden role="dialog" aria-modal="true" aria-labelledby="addHeading">
+  <div class="panel dlg">
+    <h2 id="addHeading">Tambah Portal</h2>
+
+    <label class="field">
+      <span>Judul</span>
+      <input type="text" id="pTitle" maxlength="60" autocomplete="off" placeholder="Contoh: Report Mingguan">
+    </label>
+
+    <label class="field">
+      <span>Kategori · opsional</span>
+      <input type="text" id="pMeta" maxlength="40" autocomplete="off" placeholder="Laporan · Konten">
+    </label>
+
+    <label class="field">
+      <span>Link tujuan</span>
+      <input type="text" id="pUrl" autocomplete="off" placeholder="https://...  atau  nama-file.html">
+    </label>
+
+    <div class="field">
+      <span>Gambar · opsional</span>
+      <label class="drop" id="drop">
+        <input type="file" id="pFile" accept="image/*">
+        <span class="drop-t" id="dropT">Pilih gambar</span>
+      </label>
+    </div>
+
+    <label class="check"><input type="checkbox" id="pNew"> Buka di tab baru</label>
+
+    <div class="actions">
+      <button type="button" class="btn" id="addCancel">Batal</button>
+      <button type="button" class="btn primary" id="addSave">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pop-up konfirmasi hapus -->
+<div class="modal" id="delModal" hidden role="alertdialog" aria-modal="true" aria-labelledby="delHeading">
+  <div class="panel dlg">
+    <h2 id="delHeading">Hapus portal?</h2>
+    <p>Kotak <strong id="delName"></strong> akan dihapus dari daftar <strong id="delRole"></strong>.</p>
+    <div class="actions">
+      <button type="button" class="btn" id="delCancel">Batal</button>
+      <button type="button" class="btn danger" id="delOk">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ==========================================================
+   PILIHAN (ADMIN / CONTENT) DAN PORTAL BAWAANNYA
+   ----------------------------------------------------------
+   Layar pertama menampilkan 2 pilihan di bawah ini. Setiap pilihan
+   punya daftar portalnya sendiri (kotak yang tampil setelah diklik).
+
+   Cara paling gampang menambah portal: buka salah satu pilihan,
+   klik kotak "+", isi formnya, simpan. Cara menghapus: arahkan kursor
+   ke kotak lalu klik tombol × di pojok kanan atas.
+   (Portal hasil klik "+" disimpan di browser ini.)
+
+   Daftar `portals` di bawah ini adalah portal bawaan yang selalu ada
+   saat halaman dibuka. Boleh juga ditambah lewat kode: copy satu baris
+   { ... }, tempel di bawahnya, lalu ganti isinya.
+
+   Untuk pilihan (ADMIN / CONTENT):
+     id     : kode singkat untuk alamat (misal "admin" -> index.html#admin)
+     title  : tulisan di kotak pilihan
+     image  : gambar kotak pilihan (opsional)
+     portals: daftar portal di dalamnya
+
+   Untuk setiap portal:
+     title  : judul di kotak
+     meta   : teks kecil di bawah judul (boleh dikosongkan)
+     url    : link tujuan (alamat web atau nama file, misal "report.html")
+     image  : lokasi gambar (misal "images/report-content.jpg")
+              kalau belum ada / salah, otomatis tampil placeholder
+     newTab : true kalau mau dibuka di tab baru (opsional)
+   ========================================================== */
+const ROLES = [
+  {
+    id: "admin",
+    title: "Admin",
+    image: "images/admin.jpg",
+    portals: [
+      { title: "Report Bulanan",   meta: "Laporan · Bulanan", url: "#", image: "images/report-bulanan.jpg" },
+      { title: "Ubah Cover Harga", meta: "Tools · Harga",     url: "#", image: "images/ubah-cover-harga.jpg" },
+    ]
+  },
+  {
+    id: "content",
+    title: "Content",
+    image: "images/content.jpg",
+    portals: [
+      { title: "Report Content",   meta: "Laporan · Konten",  url: "#", image: "images/report-content.jpg" },
+    ]
+  }
+];
+/* ========================================================== */
+
+const KEY = "portal-v2";
+const grid = document.getElementById("grid");
+const heading = document.getElementById("heading");
+const back = document.getElementById("back");
+let currentRole = null;     // null = layar pilihan; selain itu = pilihan yang sedang dibuka
+
+const X_SVG = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
+const PLUS_SVG = '<svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true"><path d="M24 6v36M6 24h36" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>';
+
+/* ---------- Penyimpanan (di browser) ---------- */
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    return {
+      added:   Array.isArray(s && s.added)   ? s.added   : [],
+      deleted: Array.isArray(s && s.deleted) ? s.deleted : []
+    };
+  } catch (e) {
+    return { added: [], deleted: [] };
+  }
+}
+const state = loadState();
+
+let warnedSave = false;
+function persist() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    if (!warnedSave) {
+      warnedSave = true;
+      toast("Perubahan belum bisa disimpan permanen. Buka file index.html langsung di browser (klik dua kali), bukan lewat pratinjau.");
+    }
+    return false;
+  }
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 5000);
+}
+
+/* ---------- Data ---------- */
+const slug = s => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+function getPortals(role) {
+  const base = (role.portals || [])
+    .map(p => Object.assign({}, p, { id: p.id || "seed-" + role.id + "-" + slug(p.title) }))
+    .filter(p => !state.deleted.includes(p.id));
+  return base.concat(state.added.filter(x => x.role === role.id));
+}
+
+function removePortal(id) {
+  const k = state.added.findIndex(x => x.id === id);
+  if (k > -1) state.added.splice(k, 1);
+  else if (!state.deleted.includes(id)) state.deleted.push(id);
+  persist();
+}
+
+/* Rapikan link yang diketik: "google.com" -> "https://google.com", tolak javascript: */
+function cleanUrl(raw) {
+  const u = String(raw || "").trim();
+  if (!u) return "#";
+  if (/^(javascript|data|vbscript):/i.test(u)) return "#";
+  if (/^(https?:|mailto:|tel:|\/|\.{1,2}\/|#)/i.test(u)) return u;
+  if (/^www\./i.test(u)) return "https://" + u;
+  if (!u.includes("/") && /\.(html?|php|pdf)$/i.test(u)) return u;          // file lokal
+  if (/^[^\s\/]+\.[a-z]{2,}(\/.*)?$/i.test(u)) return "https://" + u;       // domain
+  return u;
+}
+
+/* ---------- Potongan kotak (dipakai kotak pilihan & kotak portal) ---------- */
+function buildThumb(src, alt) {
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  const ph = document.createElement("div");
+  ph.className = "ph";
+  ph.textContent = "Gambar";
+  thumb.appendChild(ph);
+
+  if (src) {
+    const img = new Image();
+    img.alt = alt || "";
+    img.onload = () => thumb.classList.add("has-img");
+    img.onerror = () => img.remove();
+    img.src = src;
+    thumb.appendChild(img);
+  }
+  return thumb;
+}
+
+function buildBody(titleText, metaText) {
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const title = document.createElement("div");
+  title.className = "title";
+  title.textContent = titleText || "";
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const metaSpan = document.createElement("span");
+  metaSpan.textContent = metaText || "";
+  const arrow = document.createElement("span");
+  arrow.className = "arrow";
+  arrow.textContent = "↗";
+  arrow.setAttribute("aria-hidden", "true");
+  meta.append(metaSpan, arrow);
+
+  body.append(title, meta);
+  return body;
+}
+
+/* ---------- Kotak pilihan (ADMIN / CONTENT) ---------- */
+function buildRoleCard(r, i) {
+  const card = document.createElement("div");
+  card.className = "card role";
+  card.style.setProperty("--i", i);
+
+  const a = document.createElement("a");
+  a.className = "hit";
+  a.href = "#" + r.id;
+  a.setAttribute("aria-label", "Buka " + r.title);
+  a.addEventListener("click", e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;   // buka di tab baru tetap jalan
+    e.preventDefault();
+    go(r.id);
+  });
+
+  const n = getPortals(r).length;
+  a.append(buildThumb(r.image, r.title), buildBody(r.title, n ? n + " portal" : "Belum ada portal"));
+  card.appendChild(a);
+  return card;
+}
+
+/* ---------- Kotak portal ---------- */
+function buildCard(p, i) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.id = p.id;
+  card.style.setProperty("--i", i);
+
+  const a = document.createElement("a");
+  a.className = "hit";
+  const href = cleanUrl(p.url);
+  a.href = href;
+  if (p.newTab) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
+  if (href === "#") a.addEventListener("click", e => e.preventDefault());
+  a.append(buildThumb(p.image, p.title), buildBody(p.title, p.meta));
+
+  // tombol hapus
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "del";
+  del.title = "Hapus";
+  del.setAttribute("aria-label", "Hapus portal " + (p.title || ""));
+  del.innerHTML = X_SVG;
+  del.addEventListener("click", () => askDelete(p, card));
+
+  card.append(a, del);
+  return card;
+}
+
+function buildAddCard(i) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "card add";
+  b.style.setProperty("--i", i);
+  b.setAttribute("aria-label", "Tambah portal baru");
+
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  const plus = document.createElement("div");
+  plus.className = "plus";
+  plus.innerHTML = PLUS_SVG;
+  thumb.appendChild(plus);
+
+  const body = document.createElement("div");
+  body.className = "body";
+  const title = document.createElement("div");
+  title.className = "title";
+  title.textContent = "Tambah Portal";
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = "Kotak baru";
+  body.append(title, meta);
+
+  b.append(thumb, body);
+  b.addEventListener("click", openAdd);
+  return b;
+}
+
+/* ---------- Render ---------- */
+function render(animate) {
+  grid.classList.toggle("noanim", !animate);
+  grid.classList.toggle("roles", !currentRole);
+  grid.replaceChildren();
+
+  if (!currentRole) {
+    ROLES.forEach((r, i) => grid.appendChild(buildRoleCard(r, i)));
+  } else {
+    const list = getPortals(currentRole);
+    list.forEach((p, i) => grid.appendChild(buildCard(p, i)));
+    grid.appendChild(buildAddCard(list.length));
+  }
+  fillRow();
+}
+
+/* Lengkapi baris terakhir dengan kotak kosong supaya garis grid tetap rapi */
+function fillRow() {
+  grid.querySelectorAll(".card.empty").forEach(el => el.remove());
+  const total = grid.querySelectorAll(".card").length;
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+  const rest = (cols - (total % cols)) % cols;
+  for (let i = 0; i < rest; i++) {
+    const d = document.createElement("div");
+    d.className = "card empty";
+    d.style.animation = "none";
+    d.style.opacity = 1;
+    d.style.transform = "none";
+    d.setAttribute("aria-hidden", "true");
+    grid.appendChild(d);
+  }
+}
+window.addEventListener("resize", fillRow);
+
+/* ==========================================================
+   POP-UP
+   Dibuat dari <div> biasa + klik tombol biasa (tanpa elemen form / dialog),
+   supaya tetap jalan di semua browser dan di pratinjau yang membatasi form.
+   ========================================================== */
+const addModal = document.getElementById("addModal");
+const delModal = document.getElementById("delModal");
+let lastFocus = null;
+
+function openModal(m, focusEl) {
+  lastFocus = document.activeElement;
+  m.hidden = false;
+  document.documentElement.classList.add("modal-open");
+  if (focusEl) focusEl.focus();
+}
+
+function closeModal(m) {
+  m.hidden = true;
+  document.documentElement.classList.remove("modal-open");
+  if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
+}
+
+const activeModal = () => [addModal, delModal].find(m => !m.hidden);
+
+// klik area gelap di luar kotak = tutup
+[addModal, delModal].forEach(m => {
+  let downOnBackdrop = false;
+  m.addEventListener("mousedown", e => { downOnBackdrop = (e.target === m); });
+  m.addEventListener("click", e => { if (e.target === m && downOnBackdrop) closeModal(m); });
+});
+
+// Esc = tutup, Tab = fokus tetap di dalam pop-up
+document.addEventListener("keydown", e => {
+  const m = activeModal();
+  if (!m) return;
+  if (e.key === "Escape") { e.preventDefault(); closeModal(m); return; }
+  if (e.key === "Tab") {
+    const f = Array.from(m.querySelectorAll("button, input")).filter(el => !el.disabled && el.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+
+/* ---------- Hapus ---------- */
+const delName = document.getElementById("delName");
+const delRole = document.getElementById("delRole");
+const delCancel = document.getElementById("delCancel");
+const delOk = document.getElementById("delOk");
+let pendingDelete = null;
+
+function askDelete(p, card) {
+  pendingDelete = { p, card };
+  delName.textContent = p.title || "ini";
+  delRole.textContent = currentRole ? currentRole.title : "";
+  openModal(delModal, delCancel);
+}
+
+delCancel.addEventListener("click", () => {
+  pendingDelete = null;
+  closeModal(delModal);
+});
+
+delOk.addEventListener("click", () => {
+  const job = pendingDelete;
+  pendingDelete = null;
+  closeModal(delModal);
+  if (!job) return;
+  job.card.classList.add("leaving");
+  setTimeout(() => {
+    removePortal(job.p.id);
+    render(false);
+  }, 260);
+});
+
+/* ---------- Tambah ---------- */
+const addHeading = document.getElementById("addHeading");
+const pTitle = document.getElementById("pTitle");
+const pMeta = document.getElementById("pMeta");
+const pUrl = document.getElementById("pUrl");
+const pNew = document.getElementById("pNew");
+const pFile = document.getElementById("pFile");
+const drop = document.getElementById("drop");
+const dropT = document.getElementById("dropT");
+let pendingImage = "";
+let imageTask = Promise.resolve();
+let saving = false;
+
+function resetAddForm() {
+  pTitle.value = "";
+  pMeta.value = "";
+  pUrl.value = "";
+  pNew.checked = false;
+  pFile.value = "";
+  pTitle.classList.remove("err");
+  pendingImage = "";
+  imageTask = Promise.resolve();
+  drop.classList.remove("has");
+  drop.style.backgroundImage = "";
+  dropT.textContent = "Pilih gambar";
+}
+
+function openAdd() {
+  if (!currentRole) return;
+  resetAddForm();
+  addHeading.textContent = "Tambah Portal · " + currentRole.title;
+  openModal(addModal, pTitle);
+}
+
+document.getElementById("addCancel").addEventListener("click", () => closeModal(addModal));
+document.getElementById("addSave").addEventListener("click", saveAdd);
+pTitle.addEventListener("input", () => pTitle.classList.remove("err"));
+[pTitle, pMeta, pUrl].forEach(el => el.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); saveAdd(); }
+}));
+
+/* Kecilkan gambar (maks 900px lebar) supaya muat di penyimpanan browser */
+function fileToDataURL(file, maxW) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(fr.error);
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("gambar tidak terbaca"));
+      img.onload = () => {
+        const r = Math.min(1, maxW / img.width);
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * r));
+        c.height = Math.max(1, Math.round(img.height * r));
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+pFile.addEventListener("change", () => {
+  const f = pFile.files[0];
+  if (!f) return;
+  imageTask = fileToDataURL(f, 900).then(url => {
+    pendingImage = url;
+    drop.style.backgroundImage = 'url("' + url + '")';
+    drop.classList.add("has");
+    dropT.textContent = "Ganti gambar";
+  }).catch(() => {
+    pendingImage = "";
+    pFile.value = "";
+    toast("Gambar tidak bisa dibaca. Coba file JPG atau PNG.");
+  });
+});
+
+async function saveAdd() {
+  if (saving || !currentRole) return;
+  saving = true;
+  try {
+    await imageTask;
+    const title = pTitle.value.trim();
+    if (!title) { pTitle.classList.add("err"); pTitle.focus(); return; }
+
+    const item = {
+      id: "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      role: currentRole.id,
+      title,
+      meta: pMeta.value.trim(),
+      url: pUrl.value.trim(),
+      image: pendingImage,
+      newTab: pNew.checked
+    };
+    state.added.push(item);
+    persist();
+    closeModal(addModal);
+    render(false);
+
+    // animasi kecil untuk kotak yang baru ditambah
+    const el = grid.querySelector('[data-id="' + item.id + '"]');
+    if (el) {
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      el.animate(
+        [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
+        { duration: 500, easing: "cubic-bezier(.2,.7,.2,1)" }
+      );
+    }
+  } finally {
+    saving = false;
+  }
+}
+
+/* ==========================================================
+   NAVIGASI
+   Alamat halaman menentukan layar yang tampil:
+     index.html          -> pilihan ADMIN / CONTENT
+     index.html#admin    -> portal milik ADMIN
+     index.html#content  -> portal milik CONTENT
+   Jadi tombol "back" browser dan refresh tetap pada layar yang benar.
+   ========================================================== */
+function showRole(id, animate) {
+  currentRole = ROLES.find(r => r.id === id) || null;
+
+  [addModal, delModal].forEach(m => { if (!m.hidden) closeModal(m); });
+
+  heading.textContent = currentRole ? currentRole.title : "Portal";
+  back.hidden = !currentRole;
+  document.title = currentRole ? "PORTAL · " + currentRole.title.toUpperCase() : "PORTAL";
+
+  render(animate);
+  window.scrollTo(0, 0);
+}
+const hashId = () => (location.hash || "").replace(/^#/, "");
+
+/* Pindah layar: tampilan langsung berganti, alamat (#admin) ikut diperbarui
+   kalau browser mengizinkan. Di pratinjau yang terbatas, alamat tidak berubah
+   tapi layar tetap berganti. */
+function go(id) {
+  showRole(id, true);
+  try {
+    history.pushState(null, "", id ? "#" + id : location.href.split("#")[0]);
+  } catch (e) { /* abaikan */ }
+}
+
+// tombol kembali
+back.addEventListener("click", e => {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  go("");
+});
+
+// tombol back/forward browser, atau alamat yang diketik manual
+function syncFromAddress() {
+  const id = hashId();
+  if ((currentRole ? currentRole.id : "") !== id) showRole(id, true);
+}
+window.addEventListener("popstate", syncFromAddress);
+window.addEventListener("hashchange", syncFromAddress);
+
+showRole(hashId(), true);
+</script>
+</body>
+</html>
