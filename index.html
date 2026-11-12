@@ -242,48 +242,69 @@
     color: #e8e6e0;
     cursor: pointer;
     opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
     transform: scale(.9);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     transition: opacity .25s, transform .25s, background .2s, border-color .2s, color .2s;
   }
-  .card:hover .del,
-  .card:focus-within .del { opacity: 1; transform: none; }
+  /* tombol × hanya muncul saat "Hapus" (mode hapus) ditekan */
+  .grid.deleting .del { opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
+  .grid.deleting .card:not(.empty):hover { box-shadow: inset 0 0 0 1px #9b1c1c; }
   .del:hover, .del:focus-visible {
     background: #9b1c1c;
     border-color: #9b1c1c;
     color: #fff;
     outline: none;
   }
-  @media (hover: none) { .del { opacity: .9; transform: none; } }
-
-  /* ---------- Kotak tambah (+) ---------- */
-  .add {
-    width: 100%;
-    padding: 0;
-    border: 0;
-    font: inherit;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    background: var(--card);
+  /* ---------- Tombol kecil di bawah: + Tambah / Hapus ---------- */
+  .tools {
     display: flex;
-    flex-direction: column;
-    outline: none;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: auto;              /* menempel di bagian bawah halaman */
+    padding-top: 28px;
   }
-  .add .thumb { background: #121214; }
-  .add .plus {
-    position: absolute;
-    inset: 0 0 28% 0;
-    display: grid;
-    place-items: center;
-    color: #66666c;
-    transition: color .3s, transform .6s cubic-bezier(.2, .7, .2, 1);
+  .tools[hidden] { display: none; }
+  .tools .hint {
+    margin-right: auto;
+    font-size: .62rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
-  .add:hover .plus,
-  .add:focus-visible .plus { color: var(--text); transform: rotate(90deg) scale(1.08); }
-  .add:focus-visible { box-shadow: inset 0 0 0 1px var(--text); }
-  .add .title { color: #b9b7b1; }
+  .tool {
+    font: inherit;
+    font-size: .62rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #6f6f75;
+    background: none;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  .tool:hover, .tool:focus-visible { color: var(--text); border-color: var(--line); outline: none; }
+  .tool:disabled { opacity: .35; cursor: default; pointer-events: none; }
+  .tool.on { color: var(--text); border-color: #9b1c1c; background: rgba(155, 28, 28, .2); }
+  @media (max-width: 560px) { .tools .hint { flex: 1 1 100%; margin-bottom: 4px; } }
+
+  /* tampilan kalau pilihan belum punya portal */
+  .none {
+    grid-column: 1 / -1;
+    padding: 56px 20px;
+    background: var(--card);
+    text-align: center;
+    font-size: .7rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
 
   /* ---------- Pop-up (form tambah & konfirmasi hapus) ---------- */
   .modal {
@@ -425,6 +446,12 @@
   <a class="back" id="back" href="#" hidden>← Portal</a>
   <h1 id="heading">Portal</h1>
   <section class="grid roles" id="grid" aria-label="Daftar"></section>
+
+  <div class="tools" id="tools" hidden>
+    <span class="hint" id="hint" hidden>Pilih kotak yang mau dihapus</span>
+    <button type="button" class="tool" id="toolAdd">+ Tambah</button>
+    <button type="button" class="tool" id="toolDel" aria-pressed="false">Hapus</button>
+  </div>
 </main>
 
 <!-- Pop-up tambah portal -->
@@ -486,9 +513,10 @@
    punya daftar portalnya sendiri (kotak yang tampil setelah diklik).
 
    Cara paling gampang menambah portal: buka salah satu pilihan,
-   klik kotak "+", isi formnya, simpan. Cara menghapus: arahkan kursor
-   ke kotak lalu klik tombol × di pojok kanan atas.
-   (Portal hasil klik "+" disimpan di browser ini.)
+   klik "+ Tambah" (tombol kecil di bawah), isi formnya, simpan.
+   Cara menghapus: klik "Hapus" di bawah, lalu klik kotak yang mau
+   dihapus (atau tombol ×-nya). Klik "Selesai" kalau sudah.
+   (Portal hasil tambah/hapus ini disimpan di browser ini.)
 
    Daftar `portals` di bawah ini adalah portal bawaan yang selalu ada
    saat halaman dibuka. Boleh juga ditambah lewat kode: copy satu baris
@@ -533,7 +561,6 @@ const back = document.getElementById("back");
 let currentRole = null;     // null = layar pilihan; selain itu = pilihan yang sedang dibuka
 
 const X_SVG = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
-const PLUS_SVG = '<svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true"><path d="M24 6v36M6 24h36" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>';
 
 /* ---------- Penyimpanan (di browser) ---------- */
 function loadState() {
@@ -679,7 +706,10 @@ function buildCard(p, i) {
   const href = cleanUrl(p.url);
   a.href = href;
   if (p.newTab) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
-  if (href === "#") a.addEventListener("click", e => e.preventDefault());
+  a.addEventListener("click", e => {
+    if (deleteMode) { e.preventDefault(); askDelete(p, card); return; }   // mode hapus: klik kotak = hapus
+    if (href === "#") e.preventDefault();
+  });
   a.append(buildThumb(p.image, p.title), buildBody(p.title, p.meta));
 
   // tombol hapus
@@ -695,35 +725,6 @@ function buildCard(p, i) {
   return card;
 }
 
-function buildAddCard(i) {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "card add";
-  b.style.setProperty("--i", i);
-  b.setAttribute("aria-label", "Tambah portal baru");
-
-  const thumb = document.createElement("div");
-  thumb.className = "thumb";
-  const plus = document.createElement("div");
-  plus.className = "plus";
-  plus.innerHTML = PLUS_SVG;
-  thumb.appendChild(plus);
-
-  const body = document.createElement("div");
-  body.className = "body";
-  const title = document.createElement("div");
-  title.className = "title";
-  title.textContent = "Tambah Portal";
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  meta.textContent = "Kotak baru";
-  body.append(title, meta);
-
-  b.append(thumb, body);
-  b.addEventListener("click", openAdd);
-  return b;
-}
-
 /* ---------- Render ---------- */
 function render(animate) {
   grid.classList.toggle("noanim", !animate);
@@ -734,10 +735,17 @@ function render(animate) {
     ROLES.forEach((r, i) => grid.appendChild(buildRoleCard(r, i)));
   } else {
     const list = getPortals(currentRole);
-    list.forEach((p, i) => grid.appendChild(buildCard(p, i)));
-    grid.appendChild(buildAddCard(list.length));
+    if (list.length) {
+      list.forEach((p, i) => grid.appendChild(buildCard(p, i)));
+    } else {
+      const none = document.createElement("div");
+      none.className = "none";
+      none.textContent = 'Belum ada portal. Klik "+ Tambah" di bawah.';
+      grid.appendChild(none);
+    }
   }
   fillRow();
+  syncTools();
 }
 
 /* Lengkapi baris terakhir dengan kotak kosong supaya garis grid tetap rapi */
@@ -793,7 +801,10 @@ const activeModal = () => [addModal, delModal].find(m => !m.hidden);
 // Esc = tutup, Tab = fokus tetap di dalam pop-up
 document.addEventListener("keydown", e => {
   const m = activeModal();
-  if (!m) return;
+  if (!m) {
+    if (e.key === "Escape" && deleteMode) { deleteMode = false; syncTools(); }
+    return;
+  }
   if (e.key === "Escape") { e.preventDefault(); closeModal(m); return; }
   if (e.key === "Tab") {
     const f = Array.from(m.querySelectorAll("button, input")).filter(el => !el.disabled && el.offsetParent !== null);
@@ -803,6 +814,28 @@ document.addEventListener("keydown", e => {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 });
+
+/* ---------- Tombol kecil di bawah: + Tambah / Hapus ---------- */
+const tools = document.getElementById("tools");
+const toolAdd = document.getElementById("toolAdd");
+const toolDel = document.getElementById("toolDel");
+const hint = document.getElementById("hint");
+let deleteMode = false;     // true = mode hapus: klik kotak (atau tombol ×) untuk menghapus
+
+function syncTools() {
+  const has = currentRole ? getPortals(currentRole).length > 0 : false;
+  if (!has) deleteMode = false;
+  tools.hidden = !currentRole;
+  toolDel.disabled = !has;
+  toolDel.textContent = deleteMode ? "Selesai" : "Hapus";
+  toolDel.classList.toggle("on", deleteMode);
+  toolDel.setAttribute("aria-pressed", deleteMode ? "true" : "false");
+  hint.hidden = !deleteMode;
+  grid.classList.toggle("deleting", deleteMode);
+}
+
+toolAdd.addEventListener("click", () => { deleteMode = false; syncTools(); openAdd(); });
+toolDel.addEventListener("click", () => { deleteMode = !deleteMode; syncTools(); });
 
 /* ---------- Hapus ---------- */
 const delName = document.getElementById("delName");
@@ -962,6 +995,7 @@ async function saveAdd() {
    ========================================================== */
 function showRole(id, animate) {
   currentRole = ROLES.find(r => r.id === id) || null;
+  deleteMode = false;
 
   [addModal, delModal].forEach(m => { if (!m.hidden) closeModal(m); });
 
