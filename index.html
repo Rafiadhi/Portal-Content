@@ -244,6 +244,18 @@
   .tool:hover, .tool:focus-visible { color: var(--text); border-color: var(--line); outline: none; }
   .tool:disabled { opacity: .35; cursor: default; pointer-events: none; }
   .tool.on { color: var(--text); border-color: #9b1c1c; background: rgba(155, 28, 28, .2); }
+  /* tombol "Bagikan ke semua": hanya muncul kalau ada perubahan yang belum dibagikan */
+  .tool.pub { color: var(--text); }
+  .tool.pub::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: #d6a740;
+    vertical-align: middle;
+  }
   @media (max-width: 560px) { .tools .hint { flex: 1 1 100%; margin-bottom: 4px; } }
 
   /* tampilan kalau pilihan belum punya portal */
@@ -285,6 +297,9 @@
   .dlg h2 { font-family: var(--serif); font-weight: 400; font-size: 1.6rem; line-height: 1.1; }
   .dlg p { color: var(--muted); font-size: .92rem; line-height: 1.55; }
   .dlg strong { color: var(--text); font-weight: 500; overflow-wrap: anywhere; }
+  .dlg ol { padding-left: 1.3em; color: var(--muted); font-size: .92rem; line-height: 1.55; }
+  .dlg li + li { margin-top: 8px; }
+  .dlg .size { font-size: .7rem; letter-spacing: .08em; }
 
   .field { display: flex; flex-direction: column; gap: 8px; }
   .field > span {
@@ -400,6 +415,7 @@
 
   <div class="tools" id="tools">
     <span class="hint" id="hint" hidden>Pilih kotak yang mau dihapus</span>
+    <button type="button" class="tool pub" id="toolPub" hidden>Bagikan ke semua</button>
     <button type="button" class="tool" id="toolAdd">+ Tambah</button>
     <button type="button" class="tool" id="toolDel" aria-pressed="false">Hapus</button>
   </div>
@@ -454,22 +470,44 @@
   </div>
 </div>
 
+<!-- Pop-up bagikan ke semua orang -->
+<div class="modal" id="pubModal" hidden role="dialog" aria-modal="true" aria-labelledby="pubHeading">
+  <div class="panel dlg">
+    <h2 id="pubHeading">Bagikan ke semua orang</h2>
+    <p>Perubahan tadi baru tersimpan di browser ini. Supaya orang lain yang membuka link GitHub-mu juga melihatnya:</p>
+    <ol>
+      <li>Klik <strong>Unduh portals.js</strong> di bawah.</li>
+      <li>Di GitHub, buka repo-mu, pilih <strong>Add file → Upload files</strong>, taruh <strong>portals.js</strong> satu folder dengan index.html (ganti file lama), lalu klik <strong>Commit</strong>.</li>
+      <li>Tunggu sekitar 1 menit, lalu muat ulang halaman (Ctrl + F5).</li>
+    </ol>
+    <p class="size" id="pubSize"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="pubClose">Tutup</button>
+      <button type="button" class="btn primary" id="pubGo">Unduh portals.js</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Daftar portal yang dibagikan ke semua orang (dibuat oleh tombol "Bagikan ke semua"). Kalau file ini belum ada, dipakai daftar cadangan di bawah. -->
+<script src="portals.js" charset="utf-8"></script>
 
 <script>
 /* ==========================================================
-   DAFTAR PORTAL BAWAAN
+   DAFTAR PORTAL
    ----------------------------------------------------------
-   Cara paling gampang menambah portal: klik "+ Tambah" (tombol kecil
-   di bawah), isi formnya, simpan. Cara menghapus: klik "Hapus" di
-   bawah, lalu klik kotak yang mau dihapus (atau tombol ×-nya).
-   Klik "Selesai" kalau sudah.
-   (Portal hasil tambah/hapus ini disimpan di browser ini.)
+   Yang tampil di halaman = isi file portals.js (kalau ada di folder
+   yang sama dengan index.html). Kalau portals.js belum ada, dipakai
+   daftar cadangan DEFAULT_PORTALS di bawah ini.
 
-   Daftar di bawah ini adalah portal bawaan yang selalu ada saat
-   halaman dibuka. Boleh juga ditambah lewat kode: copy satu baris
-   { ... }, tempel di bawahnya, lalu ganti isinya.
+   Cara mengubah daftar untuk SEMUA orang:
+     1. Di halaman, klik "+ Tambah" / "Hapus" seperti biasa.
+     2. Klik "Bagikan ke semua" (muncul di bawah kalau ada perubahan),
+        unduh portals.js, lalu upload ke GitHub (ganti file lama).
+   Tanpa langkah 2, perubahan hanya terlihat di browser ini saja.
 
+   Isi tiap portal:
    title  : judul di kotak
    meta   : teks kecil di bawah judul (boleh dikosongkan)
    url    : link tujuan (alamat web atau nama file, misal "report.html")
@@ -477,7 +515,7 @@
             kalau belum ada / salah, otomatis tampil placeholder
    newTab : true kalau mau dibuka di tab baru (opsional)
    ========================================================== */
-const PORTALS = [
+const DEFAULT_PORTALS = [
   { title: "Report Content",   meta: "Laporan · Konten",  url: "#", image: "images/report-content.jpg" },
   { title: "Report Bulanan",   meta: "Laporan · Bulanan", url: "#", image: "images/report-bulanan.jpg" },
   { title: "Ubah Cover Harga", meta: "Tools · Harga",     url: "#", image: "images/ubah-cover-harga.jpg" },
@@ -485,6 +523,7 @@ const PORTALS = [
   // contoh nambah portal baru lewat kode (hapus tanda // di depan untuk aktifkan):
   // { title: "Nama Portal", meta: "Kategori", url: "https://...", image: "images/nama-portal.jpg", newTab: true },
 ];
+const PORTALS = Array.isArray(window.PORTALS_DATA) ? window.PORTALS_DATA : DEFAULT_PORTALS;
 /* ========================================================== */
 
 const KEY = "portal-v2";     // sama dengan versi sebelumnya, jadi portal yang pernah kamu tambah tetap muncul
@@ -532,18 +571,32 @@ function toast(msg) {
 /* ---------- Data ---------- */
 const slug = s => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+const withId = p => Object.assign({}, p, { id: p.id || "seed-" + slug(p.title) });
+const published = () => PORTALS.map(withId);     // daftar resmi (portals.js / cadangan) = yang dilihat semua orang
+
+function isDeleted(p) {
+  // untuk portal bawaan, "-judul" di akhir id ikut dicek supaya yang dulu dihapus (saat masih ada ADMIN/CONTENT) tetap terhapus
+  return state.deleted.some(d => d === p.id || (p.id.startsWith("seed-") && d.endsWith("-" + slug(p.title))));
+}
+
+/* Yang tampil = daftar resmi, dikurangi yang dihapus di browser ini, ditambah yang ditambah di browser ini */
 function getPortals() {
-  const base = PORTALS
-    .map(p => Object.assign({}, p, { id: p.id || "seed-" + slug(p.title) }))
-    // "-judul" di akhir id ikut dicek supaya portal yang dulu dihapus (saat masih ada ADMIN/CONTENT) tetap terhapus
-    .filter(p => !state.deleted.some(d => d === p.id || d.endsWith("-" + slug(p.title))));
-  return base.concat(state.added);
+  const pub = published();
+  const ids = new Set(pub.map(p => p.id));
+  const extra = state.added.filter(x => !ids.has(x.id));     // yang sudah masuk daftar resmi jangan tampil dobel
+  return pub.filter(p => !isDeleted(p)).concat(extra);
+}
+
+/* Ada perubahan di browser ini yang belum masuk ke daftar resmi? */
+function hasPending() {
+  const ids = new Set(published().map(p => p.id));
+  return state.added.some(x => !ids.has(x.id)) || published().some(isDeleted);
 }
 
 function removePortal(id) {
   const k = state.added.findIndex(x => x.id === id);
   if (k > -1) state.added.splice(k, 1);
-  else if (!state.deleted.includes(id)) state.deleted.push(id);
+  if (published().some(p => p.id === id) && !state.deleted.includes(id)) state.deleted.push(id);
   persist();
 }
 
@@ -675,6 +728,7 @@ window.addEventListener("resize", fillRow);
    ========================================================== */
 const addModal = document.getElementById("addModal");
 const delModal = document.getElementById("delModal");
+const pubModal = document.getElementById("pubModal");
 let lastFocus = null;
 
 function openModal(m, focusEl) {
@@ -690,10 +744,10 @@ function closeModal(m) {
   if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
 }
 
-const activeModal = () => [addModal, delModal].find(m => !m.hidden);
+const activeModal = () => [addModal, delModal, pubModal].find(m => !m.hidden);
 
 // klik area gelap di luar kotak = tutup
-[addModal, delModal].forEach(m => {
+[addModal, delModal, pubModal].forEach(m => {
   let downOnBackdrop = false;
   m.addEventListener("mousedown", e => { downOnBackdrop = (e.target === m); });
   m.addEventListener("click", e => { if (e.target === m && downOnBackdrop) closeModal(m); });
@@ -720,12 +774,14 @@ document.addEventListener("keydown", e => {
 const tools = document.getElementById("tools");
 const toolAdd = document.getElementById("toolAdd");
 const toolDel = document.getElementById("toolDel");
+const toolPub = document.getElementById("toolPub");
 const hint = document.getElementById("hint");
 let deleteMode = false;     // true = mode hapus: klik kotak (atau tombol ×) untuk menghapus
 
 function syncTools() {
   const has = getPortals().length > 0;
   if (!has) deleteMode = false;
+  toolPub.hidden = !hasPending();
   toolDel.disabled = !has;
   toolDel.textContent = deleteMode ? "Selesai" : "Hapus";
   toolDel.classList.toggle("on", deleteMode);
@@ -736,6 +792,46 @@ function syncTools() {
 
 toolAdd.addEventListener("click", () => { deleteMode = false; syncTools(); openAdd(); });
 toolDel.addEventListener("click", () => { deleteMode = !deleteMode; syncTools(); });
+
+/* ---------- Bagikan ke semua orang (unduh portals.js) ---------- */
+const pubSize = document.getElementById("pubSize");
+const pubGo = document.getElementById("pubGo");
+
+/* Isi portals.js = daftar yang sedang tampil sekarang */
+function buildPortalsFile() {
+  const rows = getPortals().map(p => "  " + JSON.stringify({
+    id: p.id, title: p.title || "", meta: p.meta || "", url: p.url || "", image: p.image || "", newTab: !!p.newTab
+  }));
+  return '/* portals.js: dibuat otomatis oleh tombol "Bagikan ke semua".\n' +
+         '   Upload ke GitHub, satu folder dengan index.html (ganti file lama). */\n' +
+         "window.PORTALS_DATA = [\n" + rows.join(",\n") + "\n];\n";
+}
+
+toolPub.addEventListener("click", () => {
+  deleteMode = false;
+  syncTools();
+  const kb = Math.max(1, Math.round(new Blob([buildPortalsFile()]).size / 1024));
+  pubSize.textContent = "Ukuran file: " + kb + " KB" + (kb > 3000 ? " (cukup besar karena gambar dari form ikut tersimpan di dalamnya)" : "");
+  openModal(pubModal, pubGo);
+});
+
+document.getElementById("pubClose").addEventListener("click", () => closeModal(pubModal));
+
+pubGo.addEventListener("click", () => {
+  try {
+    const url = URL.createObjectURL(new Blob([buildPortalsFile()], { type: "text/javascript;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "portals.js";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("portals.js terunduh. Lanjut ke langkah 2.");
+  } catch (e) {
+    toast("File tidak bisa diunduh dari sini. Buka index.html langsung di Chrome lalu coba lagi.");
+  }
+});
 
 /* ---------- Hapus ---------- */
 const delName = document.getElementById("delName");
@@ -804,7 +900,7 @@ pTitle.addEventListener("input", () => pTitle.classList.remove("err"));
   if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); saveAdd(); }
 }));
 
-/* Kecilkan gambar (maks 900px lebar) supaya muat di penyimpanan browser */
+/* Kecilkan gambar (maks 800px lebar) supaya muat di penyimpanan browser dan file portals.js tidak terlalu besar */
 function fileToDataURL(file, maxW) {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
@@ -821,7 +917,7 @@ function fileToDataURL(file, maxW) {
         ctx.fillStyle = "#111";
         ctx.fillRect(0, 0, c.width, c.height);
         ctx.drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL("image/jpeg", 0.85));
+        resolve(c.toDataURL("image/jpeg", 0.8));
       };
       img.src = fr.result;
     };
@@ -832,7 +928,7 @@ function fileToDataURL(file, maxW) {
 pFile.addEventListener("change", () => {
   const f = pFile.files[0];
   if (!f) return;
-  imageTask = fileToDataURL(f, 900).then(url => {
+  imageTask = fileToDataURL(f, 800).then(url => {
     pendingImage = url;
     drop.style.backgroundImage = 'url("' + url + '")';
     drop.classList.add("has");
